@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1063317454163",
+    "project_id": "sinauapp-4cb82",
+    "storage_bucket": "sinauapp-4cb82.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1063317454163:android:85a371cc92aa211d4475a6",
+        "android_client_info": {
+          "package_name": "com.example.sinauapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBaq5ZNY-2LIkTYWYxUYH6M5VsZD9QdnUM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
