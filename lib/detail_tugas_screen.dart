@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sinauapp/services/notif_service.dart';
@@ -9,42 +10,51 @@ class DetailTugasScreen extends StatelessWidget {
 
   const DetailTugasScreen({super.key, required this.documentId});
 
-  // --- Mark as Done Logic ---
-  Future<void> _markAsDone(BuildContext context, DocumentSnapshot doc) async {
-    final data = doc.data() as Map<String, dynamic>;
-    final int notificationId = data['notificationId'] ?? 0;
-    
-    // Konfirmasi sebelum menyelesaikan
-    bool? confirm = await showDialog(
-      context: context, 
+  
+  void _toggleTaskStatus(BuildContext context, DocumentSnapshot tugasDoc) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final tugasId = tugasDoc.id;
+    final statusRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('statusTugas')
+        .doc(tugasId);
+
+    // Dialog konfirmasi
+    showDialog(
+      context: context,
       builder: (context) => AlertDialog(
         title: const Text('Selesaikan Tugas?'),
-        content: const Text('Tugas ini akan ditandai sebagai "sudah dikerjakan".'),
+        content: const Text(
+          'Tugas ini akan ditandai sebagai "sudah dikerjakan".',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Ya, Selesaikan')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Tandai sebagai selesai
+              statusRef.set({'dikerjakan': true});
+
+              final data = tugasDoc.data() as Map<String, dynamic>;
+              NotificationService().showNotification(
+                'Tugas Selesai! 🎉',
+                'Kerja bagus! Tugas ${data['nama_matakuliah']} telah diselesaikan.',
+              );
+
+
+              Navigator.of(context).pop(); 
+              Navigator.of(context).pop(); 
+            },
+            child: const Text('Ya, Selesaikan'),
+          ),
         ],
       ),
     );
-
-    if (confirm != true) return;
-
-    // Update status di Firestore
-    await FirebaseFirestore.instance.collection('tugas').doc(documentId).update({
-      'dikerjakan': true,
-      'updated_at': Timestamp.now(),
-    });
-
-    if (notificationId != 0) {
-      await NotificationService().cancelNotification(notificationId);
-    }
-    
-    await NotificationService().showNotification(
-      'Tugas Selesai! 🎉',
-      'Kerja bagus! Tugas ${data['nama_matakuliah']} telah diselesaikan.',
-    );
-
-    if (context.mounted) Navigator.pop(context);
   }
 
   @override
@@ -57,7 +67,10 @@ class DetailTugasScreen extends StatelessWidget {
         foregroundColor: Colors.black,
       ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('tugas').doc(documentId).get(),
+        future: FirebaseFirestore.instance
+            .collection('tugas')
+            .doc(documentId)
+            .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -81,15 +94,22 @@ class DetailTugasScreen extends StatelessWidget {
               children: [
                 _buildDetailItem('Nama MK:', data['nama_matakuliah']),
                 const SizedBox(height: 24),
-                _buildDetailItem('Terakhir Diubah:', DateFormat('d MMMM yyyy, HH:mm').format(lastUpdated)),
+                _buildDetailItem(
+                  'Terakhir Diubah:',
+                  DateFormat('d MMMM yyyy, HH:mm').format(lastUpdated),
+                ),
                 const SizedBox(height: 24),
-                _buildDetailItem('Deadline Tugas:', DateFormat('EEEE, d MMMM yyyy').format(deadline)),
+                _buildDetailItem(
+                  'Deadline Tugas:',
+                  DateFormat('EEEE, d MMMM yyyy').format(deadline),
+                ),
                 const SizedBox(height: 24),
-                _buildDetailItem('Deskripsi Tugas:', data['deskripsi_tugas'], maxLines: 5),
-                
-                const Spacer(), // Mendorong tombol ke bawah
-
-                // --- Action Buttons ---
+                _buildDetailItem(
+                  'Deskripsi Tugas:',
+                  data['deskripsi_tugas'],
+                  maxLines: 5,
+                ),
+                const Spacer(),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -97,30 +117,51 @@ class DetailTugasScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          // Buka layar TambahTugasScreen dalam mode edit
-                          builder: (context) => TambahTugasScreen(tugasToEdit: doc),
+                          builder: (context) =>
+                              TambahTugasScreen(tugasToEdit: doc),
                         ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFBBF24), // Warna kuning
+                      backgroundColor: const Color(0xFFFBBF24),
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                     ),
-                    child: const Text('Edit tugas', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Edit tugas',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => _markAsDone(context, doc),
+                    onPressed: () => _toggleTaskStatus(
+                      context,
+                      doc,
+                    ), // Memanggil fungsi yang diperbarui
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF34D399), // Warna hijau
+                      backgroundColor: const Color(0xFF34D399),
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                     ),
-                    child: const Text('Sudah dikerjakan', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Sudah dikerjakan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -131,14 +172,17 @@ class DetailTugasScreen extends StatelessWidget {
     );
   }
 
-  // --- Reusable Widget for Detail Item ---
   Widget _buildDetailItem(String title, String value, {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black54,
+          ),
         ),
         const SizedBox(height: 6),
         Text(

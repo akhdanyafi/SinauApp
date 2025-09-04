@@ -17,18 +17,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final _auth = FirebaseAuth.instance;
   bool _isLoading = false;
 
-  // --- Login Logic ---
   Future<void> _loginUser() async {
-    // If already loading, do nothing
     if (_isLoading) return;
 
-    // Show loading indicator
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Validate inputs are not empty
       if (_emailController.text.trim().isEmpty ||
           _passwordController.text.trim().isEmpty) {
         throw FirebaseAuthException(code: 'fields-empty');
@@ -38,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      // Navigation is handled by the StreamBuilder in main.dart
     } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {
@@ -57,14 +52,12 @@ class _LoginScreenState extends State<LoginScreen> {
         default:
           message = 'Terjadi kesalahan. Coba lagi nanti.';
       }
-      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
-      // Hide loading indicator
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -73,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // --- Dispose Controllers ---
   @override
   void dispose() {
     _emailController.dispose();
@@ -81,7 +73,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // --- Build Method ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,7 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // --- Logo and App Title ---
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -103,7 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 50),
 
-                // --- Login Form Container ---
                 Container(
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
@@ -130,7 +119,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 25),
 
-                      // --- Email Text Field ---
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -150,7 +138,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 15),
 
-                      // --- Password Text Field ---
                       TextField(
                         controller: _passwordController,
                         obscureText: true,
@@ -170,19 +157,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 10),
 
-                      // --- Admin Info Text ---
                       IconButton(
                         onPressed: () async {
                           final Uri url = Uri.parse(
                             'https://wa.me/6285176766565?text=Hai,%20aku%20mau%20daftar%20akun%20SinauApp%20dong%20kak!!',
                           );
 
-                          // 2. Cek apakah URL bisa dibuka sebelum mencoba
                           if (await canLaunchUrl(url)) {
-                            // 3. Buka URL
                             await launchUrl(url);
                           } else {
-                            // Tampilkan pesan error jika URL tidak bisa dibuka
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Tidak dapat membuka link: $url'),
@@ -200,7 +183,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 25),
 
-                      // --- Login Button ---
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(

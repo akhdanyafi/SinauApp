@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  // --- Logout Logic ---
   Future<void> _logout(BuildContext context) async {
-    // Tampilkan dialog konfirmasi sebelum logout
     bool? confirmLogout = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -27,10 +25,8 @@ class ProfileScreen extends StatelessWidget {
       },
     );
 
-    // Jika pengguna mengonfirmasi, lakukan proses logout
     if (confirmLogout == true) {
       await FirebaseAuth.instance.signOut();
-      // Navigasi akan dihandle oleh StreamBuilder di main.dart
     }
   }
 
@@ -52,7 +48,6 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
         child: Column(
           children: [
-            // --- Profile Picture ---
             CircleAvatar(
               radius: 60,
               backgroundImage: NetworkImage(
@@ -67,7 +62,6 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 40),
 
-            // --- Info Cards ---
             _buildInfoCard(
               icon: Icons.person_outline,
               title: 'Nama',
@@ -80,8 +74,7 @@ class ProfileScreen extends StatelessWidget {
               subtitle: user?.email ?? 'Tidak ditemukan',
             ),
 
-            const Spacer(), // Mendorong tombol ke bawah
-            // --- Logout Button ---
+            const Spacer(),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -110,7 +103,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // --- Reusable Widget for Info Card ---
   Widget _buildInfoCard({
     required IconData icon,
     required String title,

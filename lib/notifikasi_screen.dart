@@ -1,5 +1,3 @@
-// lib/screens/notifikasi_screen.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +14,6 @@ class NotifikasiScreen extends StatefulWidget {
 class _NotifikasiScreenState extends State<NotifikasiScreen> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
 
-  // --- Logic to delete a single notification ---
   void _deleteNotification(String docId) {
     if (currentUser == null) return;
     FirebaseFirestore.instance
@@ -27,7 +24,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
         .delete();
   }
 
-  // --- Logic to clear all notifications using a batch delete ---
+
   void _clearAllNotifications() async {
     if (currentUser == null) return;
 
@@ -36,7 +33,7 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
         .doc(currentUser!.uid)
         .collection('notifications');
 
-    // Get all documents in the collection
+
     final snapshot = await collectionRef.get();
 
     if (snapshot.docs.isEmpty) {
@@ -48,13 +45,11 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
       return;
     }
 
-    // Create a batch write operation
     WriteBatch batch = FirebaseFirestore.instance.batch();
     for (DocumentSnapshot doc in snapshot.docs) {
       batch.delete(doc.reference);
     }
 
-    // Commit the batch
     await batch.commit();
 
     if (mounted) {
@@ -67,7 +62,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
     }
   }
 
-  // --- Confirmation dialog for clearing all notifications ---
   void _showClearAllConfirmationDialog() {
     showDialog(
       context: context,
@@ -113,12 +107,11 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Listen to the user's specific notification subcollection
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser?.uid)
             .collection('notifications')
-            .orderBy('timestamp', descending: true) // Newest first
+            .orderBy('timestamp', descending: true) 
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -158,7 +151,6 @@ class _NotifikasiScreenState extends State<NotifikasiScreen> {
               final timestamp =
                   (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
 
-              // Slidable widget for swipe-to-delete functionality
               return Slidable(
                 key: ValueKey(notif.id),
                 endActionPane: ActionPane(

@@ -1,5 +1,3 @@
-// lib/screens/main_layout.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -34,17 +32,15 @@ class _MainLayoutState extends State<MainLayout> {
     });
   }
 
-  // --- WIDGET UNTUK MEMBUAT IKON LONCENG DENGAN BADGE ---
+  
   Widget _buildNotificationIcon() {
     return StreamBuilder<QuerySnapshot>(
-      // Mendengarkan perubahan pada koleksi notifikasi pengguna saat ini
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(currentUser?.uid)
           .collection('notifications')
           .snapshots(),
       builder: (context, snapshot) {
-        // Jika tidak ada data, tampilkan ikon biasa
         if (!snapshot.hasData) {
           return IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.white),
@@ -52,10 +48,8 @@ class _MainLayoutState extends State<MainLayout> {
           );
         }
 
-        // Ambil jumlah notifikasi
         final notificationCount = snapshot.data!.docs.length;
 
-        // Gunakan Stack untuk menumpuk badge di atas ikon
         return Stack(
           alignment: Alignment.center,
           children: [
@@ -63,7 +57,6 @@ class _MainLayoutState extends State<MainLayout> {
               icon: const Icon(Icons.notifications_none, color: Colors.white),
               onPressed: () => onItemTapped(3),
             ),
-            // Tampilkan badge hanya jika ada notifikasi
             if (notificationCount > 0)
               Positioned(
                 top: 10,
@@ -105,7 +98,6 @@ class _MainLayoutState extends State<MainLayout> {
         currentUser?.displayName ?? currentUser?.email?.split('@')[0] ?? 'User';
     return Scaffold(
       appBar: AppBar(
-        // AppBar sekarang akan selalu ditampilkan
         toolbarHeight: 100,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
@@ -119,7 +111,7 @@ class _MainLayoutState extends State<MainLayout> {
         backgroundColor: const Color(0xFF4A90E2),
         elevation: 0,
         actions: [
-          _buildNotificationIcon(), // Panggil widget notifikasi di sini
+          _buildNotificationIcon(), 
           Padding(
             padding: const EdgeInsets.only(top: 15, right: 30.0),
             child: IconButton(

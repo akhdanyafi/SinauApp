@@ -1,6 +1,7 @@
 // lib/screens/tugas_screen.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sinauapp/detail_tugas_screen.dart';
@@ -14,11 +15,10 @@ class TugasScreen extends StatefulWidget {
 }
 
 class _TugasScreenState extends State<TugasScreen> {
-  String _selectedFilter = 'Semua';
+  final User? currentUser = FirebaseAuth.instance.currentUser;
   final NotificationService _notificationService = NotificationService();
   late Stream<QuerySnapshot> _tugasStream;
-
-  // --- PENAMBAHAN 1: State untuk fitur search ---
+  String _selectedFilter = 'Semua';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -29,8 +29,6 @@ class _TugasScreenState extends State<TugasScreen> {
         .collection('tugas')
         .orderBy('deadline_tugas')
         .snapshots();
-
-    // --- PENAMBAHAN 2: Listener untuk memantau input search ---
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -38,32 +36,33 @@ class _TugasScreenState extends State<TugasScreen> {
     });
   }
 
-  // --- PENAMBAHAN 3: Dispose controller untuk mencegah memory leak ---
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  // ... (fungsi _toggleTaskStatus dan _navigateToDetail tetap sama)
-  void _toggleTaskStatus(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final bool isNowDone = !data['dikerjakan'];
-    final int notificationId = data['notificationId'] ?? 0;
+  void _toggleTaskStatus(DocumentSnapshot tugasDoc) {
+    if (currentUser == null) return;
+    final tugasId = tugasDoc.id;
+    final statusRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('statusTugas')
+        .doc(tugasId);
 
-    FirebaseFirestore.instance
-        .collection('tugas')
-        .doc(doc.id)
-        .update({'dikerjakan': isNowDone})
-        .then((_) {
-          if (isNowDone && notificationId != 0) {
-            _notificationService.cancelNotification(notificationId);
-            _notificationService.showNotification(
-              'Tugas Selesai! 🎉',
-              'Kerja bagus! Tugas ${data['nama_matakuliah']} telah diselesaikan.',
-            );
-          }
-        });
+    statusRef.get().then((doc) {
+      if (doc.exists) {
+        statusRef.delete(); 
+      } else {
+        statusRef.set({'dikerjakan': true}); 
+        final data = tugasDoc.data() as Map<String, dynamic>;
+        _notificationService.showNotification(
+          'Tugas Selesai! 🎉',
+          'Kerja bagus! Tugas ${data['nama_matakuliah']} telah diselesaikan.',
+        );
+      }
+    });
   }
 
   void _navigateToDetail(String docId) {
@@ -93,7 +92,6 @@ class _TugasScreenState extends State<TugasScreen> {
             child: Column(
               children: [
                 TextField(
-                  // --- MODIFIKASI 1: Hubungkan controller ke TextField ---
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Cari berdasarkan MK atau deskripsi...',
@@ -110,9 +108,7 @@ class _TugasScreenState extends State<TugasScreen> {
                 SizedBox(
                   height: 40,
                   child: StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('tugas')
-                        .snapshots(),
+                    stream: FirebaseFirestore.instance.collection('tugas').snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const SizedBox.shrink();
                       final matkulSet = <String>{};
@@ -131,25 +127,15 @@ class _TugasScreenState extends State<TugasScreen> {
                               label: Text(matkul),
                               selected: _selectedFilter == matkul,
                               onSelected: (selected) {
-                                if (selected)
-                                  setState(() => _selectedFilter = matkul);
+                                if (selected) setState(() => _selectedFilter = matkul);
                               },
-                              selectedColor: const Color.fromARGB(
-                                255,
-                                47,
-                                49,
-                                52,
-                              ),
+                              selectedColor: const Color.fromARGB(255, 47, 49, 52),
                               labelStyle: TextStyle(
-                                color: _selectedFilter == matkul
-                                    ? Colors.white
-                                    : Colors.black,
+                                color: _selectedFilter == matkul ? Colors.white : Colors.black,
                                 fontWeight: FontWeight.w600,
                               ),
                               backgroundColor: Colors.grey[200],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                           );
                         },
@@ -160,100 +146,77 @@ class _TugasScreenState extends State<TugasScreen> {
               ],
             ),
           ),
-
+          
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _tugasStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(currentUser?.uid)
+                  .collection('statusTugas')
+                  .snapshots(),
+              builder: (context, statusSnapshot) {
+                if (statusSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "Hore! Tidak ada tugas saat ini.",
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  );
-                }
+                final Set<String> idTugasSelesai = statusSnapshot.data?.docs.map((doc) => doc.id).toSet() ?? {};
 
-                var allTugas = snapshot.data!.docs;
+                return StreamBuilder<QuerySnapshot>(
+                  stream: _tugasStream,
+                  builder: (context, tugasSnapshot) {
+                    if (tugasSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!tugasSnapshot.hasData || tugasSnapshot.data!.docs.isEmpty) {
+                      return const Center(child: Text("Tidak ada tugas yang ditambahkan.", style: TextStyle(color: Colors.grey, fontSize: 16)));
+                    }
+                    
+                    final allTugas = tugasSnapshot.data!.docs;
+                    final tugasBelumSelesai = allTugas.where((doc) => !idTugasSelesai.contains(doc.id)).toList();
 
-                // --- MODIFIKASI 2: Terapkan semua filter di sini ---
-                final tugasBelumDikerjakan = allTugas.where(
-                  (doc) => !(doc['dikerjakan'] as bool),
-                );
+                    final List<DocumentSnapshot> filteredByCourse;
+                    if (_selectedFilter != 'Semua') {
+                      filteredByCourse = tugasBelumSelesai.where((doc) => doc['nama_matakuliah'] == _selectedFilter).toList();
+                    } else {
+                      filteredByCourse = tugasBelumSelesai;
+                    }
 
-                final List<DocumentSnapshot> filteredByCourse;
-                if (_selectedFilter != 'Semua') {
-                  filteredByCourse = tugasBelumDikerjakan
-                      .where((doc) => doc['nama_matakuliah'] == _selectedFilter)
-                      .toList();
-                } else {
-                  filteredByCourse = tugasBelumDikerjakan.toList();
-                }
+                    final List<DocumentSnapshot> searchResult;
+                    if (_searchQuery.isNotEmpty) {
+                      searchResult = filteredByCourse.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final matkul = data['nama_matakuliah'].toString().toLowerCase();
+                        final deskripsi = data['deskripsi_tugas'].toString().toLowerCase();
+                        final query = _searchQuery.toLowerCase();
+                        return matkul.contains(query) || deskripsi.contains(query);
+                      }).toList();
+                    } else {
+                      searchResult = filteredByCourse;
+                    }
 
-                final List<DocumentSnapshot> searchResult;
-                if (_searchQuery.isNotEmpty) {
-                  searchResult = filteredByCourse.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final matkul = data['nama_matakuliah']
-                        .toString()
-                        .toLowerCase();
-                    final deskripsi = data['deskripsi_tugas']
-                        .toString()
-                        .toLowerCase();
-                    final query = _searchQuery.toLowerCase();
-                    return matkul.contains(query) || deskripsi.contains(query);
-                  }).toList();
-                } else {
-                  searchResult = filteredByCourse;
-                }
-                // --- AKHIR DARI BLOK FILTER ---
+                    if (searchResult.isEmpty) {
+                      return const Center(child: Text("Hore! Tidak ada tugas untuk kategori ini.", style: TextStyle(color: Colors.grey, fontSize: 16)));
+                    }
 
-                if (searchResult.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "Tidak ada tugas yang cocok.",
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  );
-                }
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+                    final tugasLewatDL = searchResult.where((t) => (t['deadline_tugas'] as Timestamp).toDate().isBefore(today)).toList();
+                    final tugasLainnya = searchResult.where((t) => !(t['deadline_tugas'] as Timestamp).toDate().isBefore(today)).toList();
 
-                final now = DateTime.now();
-                final today = DateTime(now.year, now.month, now.day);
-                final tugasLewatDL = searchResult
-                    .where(
-                      (t) => (t['deadline_tugas'] as Timestamp)
-                          .toDate()
-                          .isBefore(today),
-                    )
-                    .toList();
-                final tugasLainnya = searchResult
-                    .where(
-                      (t) => !(t['deadline_tugas'] as Timestamp)
-                          .toDate()
-                          .isBefore(today),
-                    )
-                    .toList();
-
-                return ListView(
-                  padding: const EdgeInsets.all(16.0),
-                  children: [
-                    if (tugasLewatDL.isNotEmpty) ...[
-                      _buildCategoryHeader("Tugas lewat deadline"),
-                      ...tugasLewatDL.map(
-                        (doc) => _buildTugasCard(doc, Colors.red.shade300),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    if (tugasLainnya.isNotEmpty) ...[
-                      _buildCategoryHeader("Tugas - tugas kuliah kamu"),
-                      ...tugasLainnya.map(
-                        (doc) => _buildTugasCard(doc, Colors.blue.shade300),
-                      ),
-                    ],
-                  ],
+                    return ListView(
+                      padding: const EdgeInsets.all(16.0),
+                      children: [
+                        if (tugasLewatDL.isNotEmpty) ...[
+                          _buildCategoryHeader("Tugas lewat deadline"),
+                          ...tugasLewatDL.map((doc) => _buildTugasCard(doc, Colors.red.shade300)),
+                          const SizedBox(height: 20),
+                        ],
+                        if (tugasLainnya.isNotEmpty) ...[
+                          _buildCategoryHeader("Tugas - tugas kuliah kamu"),
+                          ...tugasLainnya.map((doc) => _buildTugasCard(doc, Colors.blue.shade300)),
+                        ],
+                      ],
+                    );
+                  },
                 );
               },
             ),
@@ -262,19 +225,11 @@ class _TugasScreenState extends State<TugasScreen> {
       ),
     );
   }
-
-  // ... (widget _buildCategoryHeader dan _buildTugasCard tetap sama)
+  
   Widget _buildCategoryHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
-      ),
+      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
     );
   }
 
@@ -295,27 +250,16 @@ class _TugasScreenState extends State<TugasScreen> {
             border: Border(left: BorderSide(color: color, width: 8)),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            title: Text(
-              data['nama_matakuliah'],
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              'Deadline: ${DateFormat('EEEE, d MMMM yyyy').format(deadline)}',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            title: Text(data['nama_matakuliah'], style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('Deadline: ${DateFormat('EEEE, d MMMM yyyy').format(deadline)}', style: TextStyle(color: Colors.grey[600])),
             trailing: Transform.scale(
               scale: 1.2,
               child: Checkbox(
-                value: data['dikerjakan'],
+                value: false, 
                 onChanged: (bool? value) => _toggleTaskStatus(doc),
                 activeColor: color,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 side: BorderSide(color: Colors.grey[400]!, width: 2),
               ),
             ),

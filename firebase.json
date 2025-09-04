@@ -1,1 +1,36 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"sinauapp-4cb82","appId":"1:1063317454163:android:85a371cc92aa211d4475a6","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"sinauapp-4cb82","configurations":{"android":"1:1063317454163:android:85a371cc92aa211d4475a6","ios":"1:1063317454163:ios:c03df62563b1d5074475a6","web":"1:1063317454163:web:2469af8185cd1d904475a6"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "sinauapp-4cb82",
+          "appId": "1:1063317454163:android:85a371cc92aa211d4475a6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "sinauapp-4cb82",
+          "configurations": {
+            "android": "1:1063317454163:android:85a371cc92aa211d4475a6",
+            "ios": "1:1063317454163:ios:c03df62563b1d5074475a6",
+            "web": "1:1063317454163:web:2469af8185cd1d904475a6"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}
